@@ -98,9 +98,9 @@ altair==5.3.0
 
 ## Important Notes
 
-⚠️ **Local Execution Required**: Due to camera hardware requirements and AI model dependencies, this application is designed for local development. The computer vision features require direct webcam access that isn't available in containerized deployment environments.
+**Local Execution Required**: Due to camera hardware requirements and AI model dependencies, this application is designed for local development. The computer vision features require direct webcam access that isn't available in containerized deployment environments.
 
-🎥 **Demo Video**: A comprehensive demo video will be included in the final submission showing all features in action.
+**Demo Video**: A comprehensive demo video will be included in the final submission showing all features in action.
 
 ## Privacy & Security
 
