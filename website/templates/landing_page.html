@@ -1,0 +1,91 @@
+
+<!DOCTYPE html>
+{% load static %}
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>FocusAI</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script>
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "primary": "#660fbd",
+              "background-light": "#f7f6f8",
+              "background-dark": "#191022",
+            },
+            fontFamily: {
+              "display": ["Space Grotesk"]
+            },
+            borderRadius: { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" },
+          },
+        },
+      };
+    </script>
+<style>
+      .glow-effect {
+        box-shadow: 0 0 10px theme('colors.primary'), 0 0 20px theme('colors.primary'), 0 0 30px theme('colors.primary');
+      }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display text-white selection:bg-primary/30">
+<div class="relative min-h-screen w-full overflow-x-hidden">
+<div class="absolute inset-0 z-0">
+<div class="absolute inset-0 bg-background-dark/50"></div>
+<div class="absolute -top-1/4 -left-1/4 h-1/2 w-1/2 rounded-full bg-primary/20 blur-[150px]"></div>
+<div class="absolute -bottom-1/4 -right-1/4 h-1/2 w-1/2 rounded-full bg-primary/20 blur-[150px]"></div>
+</div>
+<div class="relative z-10 flex h-full grow flex-col">
+<header class="flex items-center justify-between whitespace-nowrap border-b border-white/10 px-10 py-5">
+<div class="flex items-center gap-4">
+<img src="{% static 'assets/lotus.png' %}" class="h-8 w-8" alt="lotus" />
+
+<h2 class="text-xl font-bold leading-tight tracking-[-0.015em]">FocusAI</h2>
+</div>
+
+<div class="flex items-center gap-4">
+  <a href="{% url 'contact' %}">
+<button class="rounded-lg h-10 px-6 bg-primary text-sm font-bold text-white transition-transform hover:scale-105 hover:glow-effect">
+                        Contact Us
+                    </button>
+  </a>
+</div>
+</header>
+<main class="flex flex-1 flex-col items-center justify-center px-4 py-20 text-center">
+<h1 class="mt-8 text-6xl font-bold tracking-tighter text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.1)] md:text-7xl lg:text-8xl">
+                    FocusAI
+                </h1>
+<p class="mt-4 max-w-2xl text-lg text-white/60 md:text-xl">Your AI accountability partner to conquer distractions and achieve deep work.</p>
+<div class="mt-10 flex flex-wrap justify-center gap-4">
+<a href="{% url 'timer' %}">
+  <button class="rounded-lg h-12 px-8 bg-primary text-base font-bold text-white shadow-lg shadow-primary/20 transition-all hover:scale-105 hover:glow-effect">
+                          Timer
+                      </button>
+ </a>
+<a href="{% url 'stats' %}">
+  <button class="rounded-lg h-12 px-8 bg-primary/80 text-base font-bold text-white shadow-lg shadow-primary/20 transition-all hover:scale-105 hover:bg-primary hover:glow-effect">
+                          Stats
+                      </button>
+</a>
+<a href="{% url 'to-do' %}">
+  <button class="rounded-lg h-12 px-8 bg-primary/80 text-base font-bold text-white shadow-lg shadow-primary/20 transition-all hover:scale-105 hover:bg-primary hover:glow-effect">
+                          To-Do
+                      </button>
+</a>
+<a href="{% url 'summarization' %}">
+  <button class="rounded-lg h-12 px-8 bg-primary/80 text-base font-bold text-white shadow-lg shadow-primary/20 transition-all hover:scale-105 hover:bg-primary hover:glow-effect">
+                          Summarization
+                      </button>
+</a>
+</div>
+</main>
+</div>
+</div>
+
+</body></html>
+

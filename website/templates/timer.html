@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+{% load static %}
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>FocusAI Timer</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script>
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "primary": "#660fbd",
+              "background-light": "#f7f6f8",
+              "background-dark": "#100a1f",
+              "accent-violet": "#8f00ff"
+            },
+            fontFamily: {
+              "display": ["Space Grotesk"]
+            },
+            borderRadius: { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" },
+          },
+        },
+      };
+    </script>
+<style>
+      .glow-effect {
+        box-shadow: 0 0 10px theme('colors.accent-violet'), 0 0 20px theme('colors.accent-violet'), 0 0 30px theme('colors.accent-violet');
+      }
+      .timer-glow {
+        box-shadow: 0 0 40px theme('colors.primary'), 0 0 80px theme('colors.primary'), 0 0 120px theme('colors.primary');
+      }
+      .debug-panel {
+        background: rgba(16, 10, 31, 0.95);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+      }
+      .confidence-bar {
+        transition: width 0.3s ease, background-color 0.3s ease;
+      }
+      .detection-pulse {
+        animation: pulse-red 1s infinite;
+      }
+      @keyframes pulse-red {
+        0%, 100% { background-color: rgba(244, 67, 54, 0.2); }
+        50% { background-color: rgba(244, 67, 54, 0.4); }
+      }
+    </style>
+</head>
+<body class="bg-background-dark font-display text-white selection:bg-primary/30">
+<div class="relative min-h-screen w-full overflow-x-hidden">
+<div class="absolute inset-0 z-0">
+<div class="absolute -top-1/4 -left-1/4 h-1/2 w-1/2 rounded-full bg-primary/20 blur-[200px]"></div>
+<div class="absolute -bottom-1/4 -right-1/4 h-1/2 w-1/2 rounded-full bg-accent-violet/10 blur-[200px]"></div>
+</div>
+
+<!-- AI Debug Panel -->
+<div id="debug-panel" class="fixed top-20 right-4 w-80 p-4 debug-panel rounded-lg z-40 transform translate-x-full transition-transform duration-300">
+  <div class="flex items-center justify-between mb-4">
+    <h3 class="text-lg font-semibold text-white">AI Detection Debug</h3>
+    <button id="debug-close" class="text-white/60 hover:text-white">
+      <span class="material-symbols-outlined">close</span>
+    </button>
+  </div>
+  
+  <!-- Detection Status -->
+  <div class="mb-4">
+    <div class="flex items-center justify-between mb-2">
+      <span class="text-sm text-white/80">Detection Status:</span>
+      <div id="status-indicator" class="w-3 h-3 rounded-full bg-gray-500"></div>
+    </div>
+    <div id="status-text" class="text-xs text-white/60">Initializing...</div>
+  </div>
+  
+  <!-- Live Confidence Scores -->
+  <div class="mb-4">
+    <div class="text-sm text-white/80 mb-2">Live Confidence Scores:</div>
+    
+    <!-- Phone Confidence -->
+    <div class="mb-3">
+      <div class="flex justify-between text-xs text-white/60 mb-1">
+        <span>Phone Detected</span>
+        <span id="phone-confidence-text">0%</span>
+      </div>
+      <div class="w-full bg-white/10 rounded-full h-2">
+        <div id="phone-confidence-bar" class="confidence-bar h-2 rounded-full bg-red-500" style="width: 0%"></div>
+      </div>
+    </div>
+    
+    <!-- No Phone Confidence -->
+    <div class="mb-3">
+      <div class="flex justify-between text-xs text-white/60 mb-1">
+        <span>No Phone</span>
+        <span id="no-phone-confidence-text">0%</span>
+      </div>
+      <div class="w-full bg-white/10 rounded-full h-2">
+        <div id="no-phone-confidence-bar" class="confidence-bar h-2 rounded-full bg-green-500" style="width: 0%"></div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Detection Threshold -->
+  
+  <!-- Detection Stats -->
+  <div class="mb-4">
+    <div class="text-sm text-white/80 mb-2">Session Stats:</div>
+    <div class="grid grid-cols-2 gap-2 text-xs">
+      <div class="bg-white/5 p-2 rounded">
+        <div class="text-white/60">Detections Today</div>
+        <div id="detections-today" class="text-white font-semibold">0</div>
+      </div>
+      <div class="bg-white/5 p-2 rounded">
+        <div class="text-white/60">Last Detection</div>
+        <div id="last-detection" class="text-white font-semibold">None</div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Camera Feed Status -->
+  <div class="mb-2">
+    <div class="text-sm text-white/80 mb-2">Camera Status:</div>
+    <div class="flex items-center justify-between">
+      <span class="text-xs text-white/60">Frame Rate:</span>
+      <span id="frame-rate" class="text-xs text-white">0 FPS</span>
+    </div>
+    <div class="flex items-center justify-between">
+      <span class="text-xs text-white/60">Processing:</span>
+      <span id="processing-status" class="text-xs text-white">Idle</span>
+    </div>
+  </div>
+</div>
+
+<div class="relative z-10 flex h-full grow flex-col">
+<header class="flex items-center justify-between whitespace-nowrap border-b border-white/10 px-10 py-5">
+<div class="flex items-center gap-4">
+<img src="{% static 'assets/lotus.png' %}" class="h-8 w-8" alt="lotus" />
+<h2 class="text-xl font-bold leading-tight tracking-[-0.015em]">FocusAI</h2>
+</div>
+<nav class="hidden md:flex items-center gap-6 ml-32">
+<a class="text-white/70 hover:text-white transition-colors" href="{% url 'summarization' %}">Summarization</a>
+<a class="text-white/70 hover:text-white transition-colors" href="{% url 'stats' %}">Stats</a>
+<a class="text-white/70 hover:text-white transition-colors" href="{% url 'to-do' %}">To Do List</a>
+</nav>
+<div class="hidden md:flex items-center gap-6">
+<a class="text-white/70 hover:text-white transition-colors" href="{% url '' %}">Home</a>
+<button id="debug-toggle" class="flex items-center gap-2 bg-primary/20 hover:bg-primary/40 text-white/70 hover:text-white px-3 py-1.5 rounded-lg border border-primary/30 transition-all text-sm">
+  <span class="material-symbols-outlined text-sm">bug_report</span>
+  AI Debug
+</button>
+<a class="text-white/70 hover:text-white transition-colors" href="{% url 'contact' %}">Contact Us</a>
+</div>
+<div class="flex items-center gap-6 md:hidden">
+<button class="text-white/70 hover:text-white transition-colors">
+<span class="material-symbols-outlined text-3xl">menu</span>
+</button>
+</div>
+</header>
+
+<main class="flex flex-1 flex-col items-center justify-center px-4 py-20 text-center">
+<div class="flex flex-col items-center">
+<div class="relative flex h-80 w-80 items-center justify-center rounded-full border-4 border-primary/50 bg-background-dark/20 timer-glow">
+<div class="absolute inset-0 rounded-full border-[10px] border-background-dark"></div>
+<div class="relative z-10">
+<span id="timer-display" class="text-7xl font-bold tracking-tighter text-white drop-shadow-[0_0_20px_rgba(255,255,255,0.2)]">00:00</span>
+</div>
+</div>
+
+<!-- Enhanced Status Display -->
+<div class="mt-8 text-center">
+  <div id="detection-status" class="inline-flex items-center px-4 py-2 rounded-full bg-white/10 border border-white/20 text-sm text-white/80 mb-4">
+    <span class="material-symbols-outlined text-sm mr-2">sensors</span>
+    <span id="detection-status-text">Phone detection initializing...</span>
+  </div>
+  
+  <!-- Phone Warning -->
+  <div id="phone-warning" class="hidden bg-red-500/20 border border-red-500/50 text-red-200 px-6 py-3 rounded-lg mb-4">
+    <div class="flex items-center justify-center">
+      <span class="material-symbols-outlined mr-2">smartphone</span>
+      <span id="phone-warning-text">Phone detected! Stay focused!</span>
+    </div>
+  </div>
+</div>
+
+<div class="mt-12 flex items-center justify-center gap-4">
+<button id="start" class="flex items-center justify-center rounded-full h-16 w-36 bg-primary text-lg font-bold text-white shadow-lg shadow-primary/30 transition-all hover:scale-105 hover:glow-effect">
+<span class="material-symbols-outlined mr-2">play_arrow</span>
+                Start
+            </button>
+<button id="pause" class="flex items-center justify-center rounded-full h-16 w-16 bg-white/10 text-white transition-all hover:bg-white/20 hover:scale-105">
+<span class="material-symbols-outlined text-3xl">pause</span>
+</button>
+<button id="stop" class="flex items-center justify-center rounded-full h-16 w-16 bg-white/10 text-white transition-all hover:bg-white/20 hover:scale-105">
+<span class="material-symbols-outlined text-3xl">stop</span>
+</button>
+</div>
+</div>
+</main>
+</div>
+</div>
+
+<script>
+let start = document.getElementById("start");
+let pause = document.getElementById("pause");  
+let stop = document.getElementById("stop");
+let display = document.getElementById("timer-display");
+
+// Debug panel elements
+let debugPanel = document.getElementById("debug-panel");
+let debugToggle = document.getElementById("debug-toggle");
+let debugClose = document.getElementById("debug-close");
+
+// Status elements
+let detectionStatus = document.getElementById("detection-status");
+let phoneWarning = document.getElementById("phone-warning");
+
+let timerInterval = null;
+let elapsedSeconds = 0;
+let isPhoneDetectionActive = false;
+let phoneInterruptionCount = 0;
+let phoneDetectionInterval = null;
+let debugPanelOpen = false;
+
+
+// Debug panel toggle functionality
+debugToggle.addEventListener('click', () => {
+    debugPanelOpen = !debugPanelOpen;
+    if (debugPanelOpen) {
+        debugPanel.style.transform = 'translateX(0)';
+        debugToggle.textContent = 'Hide Debug';
+    } else {
+        debugPanel.style.transform = 'translateX(100%)';
+        debugToggle.innerHTML = '<span class="material-symbols-outlined text-sm mr-1">bug_report</span>AI Debug';
+    }
+});
+
+debugClose.addEventListener('click', () => {
+    debugPanelOpen = false;
+    debugPanel.style.transform = 'translateX(100%)';
+    debugToggle.innerHTML = '<span class="material-symbols-outlined text-sm mr-1">bug_report</span>AI Debug';
+});
+
+/**
+ * Update debug panel with live detection data
+ */
+function updateDebugPanel(data) {
+    if (!data) return;
+    
+    // Update status indicator
+    const statusIndicator = document.getElementById('status-indicator');
+    const statusText = document.getElementById('status-text');
+    
+    if (data.detection_running && data.model_loaded) {
+        statusIndicator.className = 'w-3 h-3 rounded-full bg-green-500';
+        statusText.textContent = 'Active - Monitoring camera feed';
+    } else if (data.model_loaded) {
+        statusIndicator.className = 'w-3 h-3 rounded-full bg-yellow-500';
+        statusText.textContent = 'Ready - Timer not started';
+    } else {
+        statusIndicator.className = 'w-3 h-3 rounded-full bg-red-500';
+        statusText.textContent = 'Model not loaded';
+    }
+    
+    // Update confidence bars (we'll need to modify the backend to send this)
+    if (data.confidence) {
+        updateConfidenceBars(data.confidence.phone, data.confidence.no_phone);
+    }
+    
+    // Update stats
+    if (data.stats) {
+        document.getElementById('detections-today').textContent = data.stats.interruptions_today || 0;
+        document.getElementById('last-detection').textContent = data.last_detection || 'None';
+    }
+    
+    // Update camera status
+    document.getElementById('frame-rate').textContent = `${data.frame_rate || 0} FPS`;
+    document.getElementById('processing-status').textContent = data.detection_running ? 'Active' : 'Idle';
+}
+
+/**
+ * Update confidence bars in debug panel
+ */
+function updateConfidenceBars(phoneConf, noPhoneConf) {
+    const phoneBar = document.getElementById('phone-confidence-bar');
+    const noPhoneBar = document.getElementById('no-phone-confidence-bar');
+    const phoneText = document.getElementById('phone-confidence-text');
+    const noPhoneText = document.getElementById('no-phone-confidence-text');
+    
+    if (phoneConf !== undefined) {
+        const phonePercent = Math.round(phoneConf * 100);
+        phoneBar.style.width = `${phonePercent}%`;
+        phoneText.textContent = `${phonePercent}%`;
+        
+        // Change color based on confidence
+        if (phonePercent > 70) {
+            phoneBar.className = 'confidence-bar h-2 rounded-full bg-red-500 detection-pulse';
+        } else if (phonePercent > 50) {
+            phoneBar.className = 'confidence-bar h-2 rounded-full bg-yellow-500';
+        } else {
+            phoneBar.className = 'confidence-bar h-2 rounded-full bg-green-500';
+        }
+    }
+    
+    if (noPhoneConf !== undefined) {
+        const noPhonePercent = Math.round(noPhoneConf * 100);
+        noPhoneBar.style.width = `${noPhonePercent}%`;
+        noPhoneText.textContent = `${noPhonePercent}%`;
+    }
+}
+
+/**
+ * Update the timer display with proper formatting
+ */
+function updateDisplay() {
+    let minutes = String(Math.floor(elapsedSeconds / 60)).padStart(2, "0");
+    let seconds = String(elapsedSeconds % 60).padStart(2, "0");
+    display.textContent = `${minutes}:${seconds}`;
+}
+
+/**
+ * Update main detection status display
+ */
+function updateDetectionStatus(active, modelLoaded) {
+    const statusText = document.getElementById('detection-status-text');
+    
+    if (active && modelLoaded) {
+        statusText.textContent = "Phone detection active...";
+        detectionStatus.className = "inline-flex items-center px-4 py-2 rounded-full bg-green-500/20 border border-green-500/50 text-sm text-green-200 mb-4";
+    } else if (!modelLoaded) {
+        statusText.textContent = "Phone detection model not available";
+        detectionStatus.className = "inline-flex items-center px-4 py-2 rounded-full bg-yellow-500/20 border border-yellow-500/50 text-sm text-yellow-200 mb-4";
+    } else {
+        statusText.textContent = "Ready to work?";
+        detectionStatus.className = "inline-flex items-center px-4 py-2 rounded-full bg-white/10 border border-white/20 text-sm text-white/80 mb-4";
+    }
+}
+
+/**
+ * Show phone detection warning
+ */
+function showPhoneWarning(count) {
+    const warningText = document.getElementById('phone-warning-text');
+    warningText.textContent = `Caught you. Get back to work. (${count} times today)`;
+    phoneWarning.classList.remove('hidden');
+
+    
+    // Hide warning after 5 seconds
+    setTimeout(() => {
+        phoneWarning.classList.add('hidden');
+    }, 5000);
+}
+
+function startPhoneDetectionPolling() {
+    phoneDetectionInterval = setInterval(() => {
+        fetch("/api/detection-status/")
+            .then(res => res.json())
+            .then(data => {
+                console.log("📊 Detection status response:", data); // ADD THIS LINE
+                
+                // Update main status
+                updateDetectionStatus(data.detection_running, data.model_loaded);
+                
+                // Update debug panel
+                updateDebugPanel(data);
+                
+                // Check for phone interruptions
+                console.log(`Checking interruptions: current=${phoneInterruptionCount}, received=${data.stats?.interruptions_today}`); // ADD THIS LINE
+                
+                if (data.stats && data.stats.interruptions_today > phoneInterruptionCount) {
+                    console.log(`🚨 Phone interruption detected! Old: ${phoneInterruptionCount}, New: ${data.stats.interruptions_today}`);
+                    phoneInterruptionCount = data.stats.interruptions_today;
+                    showPhoneWarning(phoneInterruptionCount);
+                    pauseTimer()
+                }
+            })
+            .catch(err => {
+                console.error("Failed to get detection status:", err);
+            });
+    }, 1000);
+}
+
+function stopPhoneDetectionPolling() {
+    if (phoneDetectionInterval) {
+        clearInterval(phoneDetectionInterval);
+        phoneDetectionInterval = null;
+    }
+}
+
+/**
+ * Start button handler
+ */
+start.addEventListener('click', () => {
+    fetch("/api/start/")  
+        .then(res => res.json())
+        .then(data => {
+            console.log("Start response:", data);
+            
+            isPhoneDetectionActive = data.phone_detection;
+            updateDetectionStatus(isPhoneDetectionActive, true);
+            
+            if (isPhoneDetectionActive) {
+                startPhoneDetectionPolling();
+            }
+            
+            if (!data.phone_detection) {
+                alert("Timer started, but phone detection is not available. Check the debug panel for details.");
+            }
+        })
+        .catch(err => {
+            console.error("Failed to start timer:", err);
+            alert("Failed to start timer. Please check your connection.");
+        });
+
+
+    if (!timerInterval) {
+        timerInterval = setInterval(() => {
+            elapsedSeconds++;
+            updateDisplay();
+        }, 1000);
+    }
+    
+    phoneInterruptionCount = data.stats?.interruptions_today || 0;
+    phoneWarning.classList.add('hidden');
+});
+
+/**
+ * Pause button handler
+ */
+pause.addEventListener('click', () => {
+    pauseTimer();
+});
+/**
+ * Pauses the timer and updates the backend and UI.
+ */
+function pauseTimer() {
+    // Do nothing if the timer is already paused
+    if (!timerInterval) return;
+
+    console.log("Pausing timer due to phone detection or manual click.");
+
+    fetch("/api/pause/")
+        .then(res => res.json())
+        .then(data => {
+            console.log("Pause response:", data);
+        });
+
+    clearInterval(timerInterval);
+    timerInterval = null;
+    stopPhoneDetectionPolling();
+
+    isPhoneDetectionActive = false;
+    updateDetectionStatus(false, true);
+}
+
+/**
+ * Stop button handler
+ */
+stop.addEventListener('click', () => {
+    fetch("/api/stop/")
+        .then(res => res.json())
+        .then(data => {
+            console.log("Stop response:", data);
+            
+            let focusMinutes = Math.floor(data.duration / 60);
+            let message = `Session completed!\n\n`;
+            message += `Focus time: ${focusMinutes} minutes\n`;
+            if (data.stats) {
+                message += `Phone interruptions: ${data.stats.phone_interruptions_today}\n`;
+                message += `Sessions today: ${data.stats.sessions_today}`;
+            }
+            
+            alert(message);
+            
+            clearInterval(timerInterval);
+            timerInterval = null;
+            elapsedSeconds = 0;
+            updateDisplay();
+            
+            stopPhoneDetectionPolling();
+            
+            isPhoneDetectionActive = false;
+            updateDetectionStatus(false, true);
+            phoneWarning.classList.add('hidden');
+        })
+        .catch(err => {
+            console.error("Failed to stop timer:", err);
+            
+            clearInterval(timerInterval);
+            timerInterval = null;
+            elapsedSeconds = 0;
+            updateDisplay();
+            stopPhoneDetectionPolling();
+        });
+});
+
+/**
+ * Initialize on page load
+ */
+document.addEventListener('DOMContentLoaded', () => {
+    fetch("/api/detection-status/")
+        .then(res => res.json())
+        .then(data => {
+            updateDetectionStatus(data.detection_running, data.model_loaded);
+            updateDebugPanel(data);
+            phoneInterruptionCount = data.stats?.interruptions_today || 0;
+        })
+        .catch(err => {
+            console.error("Failed to get initial status:", err);
+        });
+});
+</script>
+
+</body></html>

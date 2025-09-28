@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+{% load static %}
+<html class="dark" lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>FocusAI Summarization</title>
+    <link href="https://fonts.googleapis.com" rel="preconnect"/>
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#660fbd",
+                        "background-light": "#f7f6f8",
+                        "background-dark": "#100a1f",
+                        "accent-violet": "#8f00ff"
+                    },
+                    fontFamily: {
+                        "display": ["Space Grotesk"]
+                    },
+                    borderRadius: { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" },
+                },
+            },
+        };
+    </script>
+    <style>
+        .glow-effect {
+            box-shadow: 0 0 10px theme('colors.accent-violet'), 0 0 20px theme('colors.accent-violet'), 0 0 30px theme('colors.accent-violet');
+        }
+        
+        .loading-spinner {
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #660fbd;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .progress-bar {
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        
+        .pulse-glow {
+            animation: pulse-glow 2s infinite;
+        }
+        
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 5px theme('colors.primary'); }
+            50% { box-shadow: 0 0 20px theme('colors.primary'), 0 0 30px theme('colors.primary'); }
+        }
+    </style>
+</head>
+<body class="bg-background-dark font-display text-white selection:bg-primary/30">
+    <div class="relative min-h-screen w-full overflow-x-hidden">
+        <div class="absolute inset-0 z-0">
+            <div class="absolute -top-1/4 -left-1/4 h-1/2 w-1/2 rounded-full bg-primary/20 blur-[200px]"></div>
+            <div class="absolute -bottom-1/4 -right-1/4 h-1/2 w-1/2 rounded-full bg-accent-violet/10 blur-[200px]"></div>
+        </div>
+        
+        <div class="relative z-10 flex h-full grow flex-col">
+            <header class="flex items-center justify-between whitespace-nowrap border-b border-white/10 px-10 py-5">
+                <div class="flex items-center gap-4">
+                    <img src="{% static 'assets/lotus.png' %}" class="h-8 w-8" alt="lotus" />
+                    <h2 class="text-xl font-bold leading-tight tracking-[-0.015em]">FocusAI</h2>
+                </div>
+                <nav class="hidden md:flex flex-1 items-center justify-center gap-6">
+                    <a class="text-white/70 hover:text-white transition-colors" href="/timer">Timer</a>
+                    <a class="text-white/70 hover:text-white transition-colors" href="/stats">Stats</a>
+                    <a class="text-white/70 hover:text-white transition-colors" href="/to-do">To Do List</a>
+                </nav>
+                <div class="hidden md:flex items-center gap-6">
+                    <a class="text-white/70 hover:text-white transition-colors" href="/">Home</a>
+                    <a class="text-white/70 hover:text-white transition-colors" href="/contact">Contact Us</a>
+                </div>
+                <div class="flex items-center gap-6 md:hidden">
+                    <button class="text-white/70 hover:text-white transition-colors">
+                        <span class="material-symbols-outlined text-3xl">menu</span>
+                    </button>
+                </div>
+            </header>
+
+            <main class="flex flex-1 flex-col items-center gap-12 px-4 py-16 sm:px-6 lg:px-8">
+                <div class="w-full max-w-4xl space-y-8">
+                    <div>
+                        <label class="text-lg font-medium text-white/90" for="text-to-summarize">Enter text to summarize</label>
+                        <div class="relative mt-2">
+                            <textarea 
+                                class="w-full rounded-lg border border-white/20 bg-white/5 p-4 text-white/90 placeholder-white/40 focus:border-primary focus:ring-primary focus:ring-opacity-50 transition-all resize-none" 
+                                id="text-to-summarize" 
+                                placeholder="Paste your text here... (minimum 100 characters)" 
+                                rows="8">
+                            </textarea>
+                            <button 
+                                id="summarize-btn" 
+                                class="absolute bottom-4 right-4 flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-bold text-white shadow-lg shadow-primary/30 transition-all hover:scale-105 hover:glow-effect disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100">
+                                <span id="btn-text">Summarize</span>
+                                <div id="loading-spinner" class="loading-spinner ml-2 hidden"></div>
+                            </button>
+                        </div>
+                        <div id="char-counter" class="mt-2 text-sm text-white/60">
+                            <span id="char-count">0</span> characters (minimum 100, maximum 50,000)
+                        </div>
+                        
+                        <!-- Progress bar for long texts -->
+                        <div id="progress-container" class="mt-4 hidden">
+                            <div class="flex items-center justify-between text-sm text-white/70 mb-2">
+                                <span id="progress-text">Processing...</span>
+                                <span id="progress-percent">0%</span>
+                            </div>
+                            <div class="w-full bg-white/10 rounded-full h-2">
+                                <div id="progress-bar" class="progress-bar h-2 bg-primary rounded-full pulse-glow"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="text-lg font-medium text-white/90" for="summary-output">Generated Summary</label>
+                        <div id="summary-output" class="mt-2 min-h-[200px] w-full rounded-lg border border-dashed border-white/20 bg-white/5 p-4">
+                            <p id="default-text" class="text-white/70">Your summary will appear here...</p>
+                        </div>
+                        <div id="summary-stats" class="mt-4 hidden">
+                            <div class="flex flex-wrap gap-4 text-sm text-white/60">
+                                <span>Original: <span id="original-length" class="text-white/80 font-medium"></span> characters</span>
+                                <span>Summary: <span id="summary-length" class="text-white/80 font-medium"></span> characters</span>
+                                <span>Compression: <span id="compression-ratio" class="text-accent-violet font-medium"></span>%</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="error-message" class="hidden p-4 bg-red-500/20 border border-red-500/30 rounded-lg">
+                        <div class="flex items-center gap-2">
+                            <span class="material-symbols-outlined text-red-400">error</span>
+                            <p class="text-red-200" id="error-text"></p>
+                        </div>
+                    </div>
+
+          
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const textArea = document.getElementById('text-to-summarize');
+        const summarizeBtn = document.getElementById('summarize-btn');
+        const btnText = document.getElementById('btn-text');
+        const loadingSpinner = document.getElementById('loading-spinner');
+        const summaryOutput = document.getElementById('summary-output');
+        const defaultText = document.getElementById('default-text');
+        const charCount = document.getElementById('char-count');
+        const charCounter = document.getElementById('char-counter');
+        const summaryStats = document.getElementById('summary-stats');
+        const errorMessage = document.getElementById('error-message');
+        const errorText = document.getElementById('error-text');
+        const progressContainer = document.getElementById('progress-container');
+        const progressBar = document.getElementById('progress-bar');
+        const progressText = document.getElementById('progress-text');
+        const progressPercent = document.getElementById('progress-percent');
+        
+        // Character counter
+        textArea.addEventListener('input', function() {
+            const count = textArea.value.length;
+            charCount.textContent = count.toLocaleString();
+            
+            // Update color based on character count
+            if (count < 100) {
+                charCounter.className = 'mt-2 text-sm text-yellow-400';
+            } else if (count > 50000) {
+                charCounter.className = 'mt-2 text-sm text-red-400';
+            } else if (count > 10000) {
+                charCounter.className = 'mt-2 text-sm text-blue-400';
+                charCounter.innerHTML = `<span id="char-count">${count.toLocaleString()}</span> characters (will be processed in chunks)`;
+            } else {
+                charCounter.className = 'mt-2 text-sm text-green-400';
+            }
+            
+            // Enable/disable button based on character count
+            summarizeBtn.disabled = count < 100 || count > 50000;
+        });
+        
+        // Simulate progress for long texts
+        function simulateProgress() {
+            let progress = 0;
+            const interval = setInterval(() => {
+                progress += Math.random() * 15;
+                if (progress > 90) {
+                    progress = 90;
+                }
+                progressBar.style.width = progress + '%';
+                progressPercent.textContent = Math.round(progress) + '%';
+                
+                if (progress >= 90) {
+                    clearInterval(interval);
+                }
+            }, 500);
+            
+            return interval;
+        }
+        
+        // Summarize button click handler
+        summarizeBtn.addEventListener('click', async function() {
+            const text = textArea.value.trim();
+            
+            // Validate input
+            if (!text) {
+                showError('Please enter some text to summarize.');
+                return;
+            }
+            
+            if (text.length < 100) {
+                showError('Text must be at least 100 characters long.');
+                return;
+            }
+            
+            if (text.length > 50000) {
+                showError('Text is too long. Maximum 50,000 characters allowed.');
+                return;
+            }
+            
+            // Show loading state
+            setLoadingState(true);
+            hideError();
+            
+            // Show progress for long texts
+            let progressInterval = null;
+            if (text.length > 5000) {
+                progressContainer.classList.remove('hidden');
+                progressText.textContent = 'Processing large text...';
+                progressInterval = simulateProgress();
+            }
+            
+            try {
+                const response = await fetch('/api/summarize/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCsrfToken()
+                    },
+                    body: JSON.stringify({ text: text })
+                });
+                
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.error || `Server error: ${response.status}`);
+                }
+                
+                if (data.success) {
+                    displaySummary(data.summary, data);
+                } else {
+                    throw new Error(data.error || 'Summarization failed');
+                }
+                
+            } catch (error) {
+                console.error('Summarization error:', error);
+                let errorMsg = error.message || 'An error occurred while summarizing the text.';
+                
+                // Provide more specific error messages
+                if (error.message.includes('503')) {
+                    errorMsg = 'Summarization service is temporarily unavailable. Please try again in a few moments.';
+                } else if (error.message.includes('too long')) {
+                    errorMsg = 'Text is too complex for processing. Try breaking it into smaller sections.';
+                } else if (error.message.includes('network') || error.message.includes('fetch')) {
+                    errorMsg = 'Network error. Please check your connection and try again.';
+                }
+                
+                showError(errorMsg);
+            } finally {
+                setLoadingState(false);
+                if (progressInterval) {
+                    clearInterval(progressInterval);
+                }
+                // Complete progress bar and hide
+                if (progressContainer && !progressContainer.classList.contains('hidden')) {
+                    progressBar.style.width = '100%';
+                    progressPercent.textContent = '100%';
+                    progressText.textContent = 'Complete!';
+                    setTimeout(() => {
+                        progressContainer.classList.add('hidden');
+                        progressBar.style.width = '0%';
+                    }, 1000);
+                }
+            }
+        });
+        
+        function setLoadingState(loading) {
+            if (loading) {
+                btnText.textContent = 'Summarizing...';
+                loadingSpinner.classList.remove('hidden');
+                summarizeBtn.disabled = true;
+                summarizeBtn.classList.add('pulse-glow');
+            } else {
+                btnText.textContent = 'Summarize';
+                loadingSpinner.classList.add('hidden');
+                summarizeBtn.classList.remove('pulse-glow');
+                summarizeBtn.disabled = textArea.value.length < 100 || textArea.value.length > 50000;
+            }
+        }
+        
+        function displaySummary(summary, data) {
+            // Hide default text and show summary
+            defaultText.style.display = 'none';
+            
+            // Create summary content
+            const summaryContent = document.createElement('div');
+            summaryContent.className = 'text-white/90 fade-in leading-relaxed';
+            summaryContent.textContent = summary;
+            
+            // Clear and add new content
+            summaryOutput.innerHTML = '';
+            summaryOutput.appendChild(summaryContent);
+            
+            // Update summary border to solid
+            summaryOutput.className = 'mt-2 min-h-[200px] w-full rounded-lg border border-primary/30 bg-white/5 p-4';
+            
+            // Show statistics
+            if (data.original_length && data.summary_length && data.compression_ratio !== undefined) {
+                document.getElementById('original-length').textContent = data.original_length.toLocaleString();
+                document.getElementById('summary-length').textContent = data.summary_length.toLocaleString();
+                document.getElementById('compression-ratio').textContent = data.compression_ratio;
+                summaryStats.classList.remove('hidden');
+            }
+            
+            // Smooth scroll to summary
+            summaryOutput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        
+        function showError(message) {
+            errorText.textContent = message;
+            errorMessage.classList.remove('hidden');
+            
+            // Smooth scroll to error
+            errorMessage.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            
+            // Auto-hide error after 8 seconds
+            setTimeout(() => {
+                hideError();
+            }, 8000);
+        }
+        
+        function hideError() {
+            errorMessage.classList.add('hidden');
+        }
+        
+        function getCsrfToken() {
+            // Try to get CSRF token from cookie
+            const cookies = document.cookie.split(';');
+            for (let cookie of cookies) {
+                const [name, value] = cookie.trim().split('=');
+                if (name === 'csrftoken') {
+                    return value;
+                }
+            }
+            
+            // Try to get from meta tag if cookie not found
+            const metaTag = document.querySelector('meta[name="csrf-token"]');
+            if (metaTag) {
+                return metaTag.getAttribute('content');
+            }
+            
+            // Return empty string if no CSRF token found - Django will handle this
+            return '';
+        }
+    });
+    </script>
+</body>
+</html>
